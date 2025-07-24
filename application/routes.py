@@ -25,7 +25,8 @@ def login():
                 "email": user.email,
                 "username": user.username,
                 "roles": [role.name for role in user.roles]
-            }
+            },
+            "token" : user.get_auth_token()
         })
     return jsonify({"error": "Invalid email or password"}), 401
 
@@ -136,6 +137,37 @@ def get_parking_lot_details(lot_id):
             "status": spot.status
         } for spot in spots]
     })
+
+
+@app.route('/api/parking-lots/<int:lot_id>/spots', methods=['GET'])
+@auth_required('token')
+def get_parking_lot_spots(lot_id):
+    lot = ParkingLot.query.get_or_404(lot_id)
+    spots = ParkingSpot.query.filter_by(lot_id=lot_id).all()
+    
+    spot_list = []
+    for spot in spots:
+        reservation = Reservation.query.filter_by(spot_id=spot.id, status='active').first()
+        spot_data = {
+            "id": spot.id,
+            "spot_number": spot.spot_number,
+            "status": spot.status,
+            "reservation": None
+        }
+        if reservation:
+            spot_data["reservation"] = {
+                "user": {
+                    "id": reservation.user.id,
+                    "username": reservation.user.username,
+                    "email": reservation.user.email
+                },
+                "license_plate": reservation.license_plate,
+                "parking_timestamp": reservation.parking_timestamp.isoformat()
+            }
+        spot_list.append(spot_data)
+    
+    return jsonify({"spots": spot_list})
+
 
 @app.route('/api/parking-lots/<int:lot_id>', methods=['PUT'])
 @auth_required('token')
