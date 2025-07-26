@@ -107,7 +107,6 @@ def create_parking_lot():
     db.session.add(lot)
     db.session.flush()
     
-    # Auto-create parking spots
     for i in range(1, lot.total_spots + 1):
         spot = ParkingSpot(
             lot_id=lot.id,
@@ -131,6 +130,7 @@ def get_parking_lot_details(lot_id):
         "address": lot.address,
         "price": lot.price,
         "total_spots": lot.total_spots,
+        "pincode" : lot.pincode,
         "spots": [{
             "id": spot.id,
             "spot_number": spot.spot_number,
@@ -179,16 +179,13 @@ def update_parking_lot(lot_id):
     old_total_spots = lot.total_spots
     new_total_spots = int(data.get('total_spots', lot.total_spots))
     
-    # Update basic lot information first
     lot.name = data.get('name', lot.name)
     lot.address = data.get('address', lot.address)
     lot.pincode = data.get('pincode', lot.pincode)
     lot.price = float(data.get('price', lot.price))
     
-    # Handle spot count changes
     if new_total_spots != old_total_spots:
         if new_total_spots > old_total_spots:
-            # Adding spots - create new ones
             for i in range(old_total_spots + 1, new_total_spots + 1):
                 spot = ParkingSpot(
                     lot_id=lot.id,
@@ -198,15 +195,12 @@ def update_parking_lot(lot_id):
                 db.session.add(spot)
                 
         elif new_total_spots < old_total_spots:
-            # Reducing spots - need to handle carefully
             spots_to_check = old_total_spots - new_total_spots
             
-            # Get the highest numbered spots that would be removed
             spots_to_remove = ParkingSpot.query.filter_by(lot_id=lot_id)\
                 .order_by(ParkingSpot.spot_number.desc())\
                 .limit(spots_to_check).all()
             
-            # Check for active reservations on spots to be removed
             active_reservations_info = []
             
             for spot in spots_to_remove:
@@ -224,7 +218,6 @@ def update_parking_lot(lot_id):
                         'parked_since': active_reservation.parking_timestamp.isoformat()
                     })
             
-            # If there are active reservations, return error and don't make any changes
             if active_reservations_info:
                 return jsonify({
                     "error": "Cannot reduce parking spots while there are active reservations",
@@ -234,9 +227,7 @@ def update_parking_lot(lot_id):
                     "total_spots_to_remove": spots_to_check
                 }), 400
             
-            # Safe to delete spots - no active reservations found
             for spot in spots_to_remove:
-                # Double-check no active reservations (safety measure)
                 active_check = Reservation.query.filter_by(
                     spot_id=spot.id, 
                     status='active'
@@ -245,14 +236,12 @@ def update_parking_lot(lot_id):
                 if not active_check:
                     db.session.delete(spot)
                 else:
-                    # This shouldn't happen, but safety first
                     db.session.rollback()
                     return jsonify({
                         "error": "Active reservation detected during deletion process",
                         "spot_number": spot.spot_number
                     }), 400
     
-    # Update the total_spots count only after successful spot management
     lot.total_spots = new_total_spots
     
     try:
@@ -260,7 +249,6 @@ def update_parking_lot(lot_id):
         
         response_data = {"message": "Parking lot updated successfully"}
         
-        # Add helpful info about what was changed
         if new_total_spots > old_total_spots:
             response_data["spots_added"] = new_total_spots - old_total_spots
         elif new_total_spots < old_total_spots:
@@ -284,7 +272,6 @@ def delete_parking_lot(lot_id):
     db.session.commit()
     return jsonify({"message": "Parking lot deleted successfully"})
 
-# RESERVATION MANAGEMENT
 @app.route('/api/reservations', methods=['POST'])
 @auth_required('token')
 def create_reservation():
@@ -294,13 +281,11 @@ def create_reservation():
     car = Reservation.query.filter_by(license_plate=license_plate, status = "active").first()
     if car:
         return jsonify({"error" : "Duplicate car not allowed!"}),400
-    # Auto-allocate first available spot
     available_spot = ParkingSpot.query.filter_by(lot_id=lot_id, status='A').first()
     
     if not available_spot:
         return jsonify({"error": "No available spots"}), 400
     
-    # Create reservation and occupy spot
     reservation = Reservation(
         spot_id=available_spot.id,
         user_id=current_user.id,
@@ -324,15 +309,12 @@ def create_reservation():
 def release_spot(reservation_id):
     reservation = Reservation.query.get_or_404(reservation_id)
     
-    # Check if reservation is already completed
     if reservation.status == 'completed':
         return jsonify({"error": "Reservation already completed"}), 400
     
-    # Check if user owns this reservation (optional security check)
     if reservation.user_id != current_user.id and 'admin' not in [role.name for role in current_user.roles]:
         return jsonify({"error": "Unauthorized to release this reservation"}), 403
     
-    # Calculate cost
     leaving_time = datetime.now(timezone.utc)
     
     parking_time = reservation.parking_timestamp
@@ -343,12 +325,10 @@ def release_spot(reservation_id):
     hours = duration.total_seconds() / 3600
     total_cost = hours * reservation.spot.lot.price
     
-    # Update reservation
     reservation.leaving_timestamp = leaving_time
     reservation.parking_cost = total_cost
     reservation.status = 'completed'
     
-    # Release spot
     reservation.spot.status = 'A'
     
     db.session.commit()
@@ -358,7 +338,6 @@ def release_spot(reservation_id):
         "duration_hours": round(hours, 2),
         "total_cost": round(total_cost, 2)
     })
-# USER HISTORY
 @app.route('/api/reservations/my-history', methods=['GET'])
 @auth_required('token')
 def get_my_reservations():
@@ -376,18 +355,21 @@ def get_my_reservations():
         "status": res.status
     } for res in reservations])
 
-# ADMIN VIEWS
 @app.route('/api/admin/users', methods=['GET'])
 @auth_required('token')
 @roles_required('admin')
 def get_all_users():
     users = User.query.all()
+    #spots = Reservation.query.filter_by(user_id=user.id, status='active')
     
     return jsonify([{
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "current_spot": Reservation.query.filter_by(user_id=user.id, status='active').first().spot.spot_number if Reservation.query.filter_by(user_id=user.id, status='active').first() else None,
+
+        "current_spot": [res.spot.spot_number
+                for res in Reservation.query.filter_by(user_id=user.id, status='active').all()
+                if res.spot is not None],
         "total_reservations": Reservation.query.filter_by(user_id=user.id).count()
     } for user in users])
 
