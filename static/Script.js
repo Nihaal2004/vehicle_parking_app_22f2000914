@@ -6,6 +6,9 @@ import { ParkingLotForm } from './components/admin/ParkingLotForm.js';
 import { ParkingLotDetails } from './components/admin/ParkingLotDetails.js';
 import { UserList } from './components/admin/UserList.js';
 import { UserDashboard } from './components/user/UserDashboard.js';
+import { ReservationHistory } from './components/user/ReservationHistory.js';
+import { ParkingLotsView } from './components/user/ParkingLotsView.js';
+import { ActiveReservations } from './components/user/ActiveReservations.js';
 
 // Router configuration
 const routes = [
@@ -32,7 +35,16 @@ const routes = [
             { path: 'users', component: UserList }
         ]
     },
-    { path: '/dashboard', component: UserDashboard }
+    { 
+        path: '/dashboard', 
+        component: UserDashboard,
+        children: [
+            { path: '', redirect: 'parking-lots' },
+            { path: 'parking-lots', component: ParkingLotsView },
+            { path: 'active-reservations', component: ActiveReservations },
+            { path: 'history', component: ReservationHistory }
+        ]
+    }
 ];
 
 const router = new VueRouter({
