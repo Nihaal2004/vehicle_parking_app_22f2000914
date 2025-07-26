@@ -9,6 +9,7 @@ import { UserDashboard } from './components/user/UserDashboard.js';
 import { ReservationHistory } from './components/user/ReservationHistory.js';
 import { ParkingLotsView } from './components/user/ParkingLotsView.js';
 import { ActiveReservations } from './components/user/ActiveReservations.js';
+import { AdminReservations } from './components/admin/AdminReservations.js';
 
 // Router configuration
 const routes = [
@@ -22,6 +23,7 @@ const routes = [
             { path: '', redirect: 'parking-lots' },
             { path: 'parking-lots', component: ParkingLotList },
             { path: 'parking-lots/create', component: ParkingLotForm },
+            {path: 'reservations', component: AdminReservations},
             { 
                 path: 'parking-lots/:lotId', 
                 component: ParkingLotDetails,

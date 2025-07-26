@@ -18,6 +18,9 @@ export const AdminDashboard = {
                             <li class="nav-item">
                                 <router-link to="/admin/users" class="nav-link">Users</router-link>
                             </li>
+                            <li class="nav-item">
+                                <router-link to="/admin/reservations" class="nav-link">Reservations</router-link>
+                            </li>
                         </ul>
                     </div>
                 </div>
