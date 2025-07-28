@@ -20,7 +20,7 @@ const routes = [
         path: '/admin',
         component: AdminDashboard,
         children: [
-            { path: '', redirect: 'parking-lots' },
+            { path: '', component: AdminDashboard },
             { path: 'parking-lots', component: ParkingLotList },
             { path: 'parking-lots/create', component: ParkingLotForm },
             {path: 'reservations', component: AdminReservations},
@@ -41,7 +41,7 @@ const routes = [
         path: '/dashboard', 
         component: UserDashboard,
         children: [
-            { path: '', redirect: 'parking-lots' },
+            { path: '', component : UserDashboard },
             { path: 'parking-lots', component: ParkingLotsView },
             { path: 'active-reservations', component: ActiveReservations },
             { path: 'history', component: ReservationHistory }
