@@ -2,6 +2,7 @@ import { getAuthHeader } from '../../utils/auth.js';
 import { ParkingLotsView } from './ParkingLotsView.js';
 import { ActiveReservations } from './ActiveReservations.js';
 import { ReservationHistory } from './ReservationHistory.js';
+import { UserStatistics } from './UserStatistics.js';  // new import
 
 export const UserDashboard = {
     template: `
@@ -23,7 +24,7 @@ export const UserDashboard = {
             </nav>
 
             <!-- Navigation Tabs -->
-            <ul class="nav nav-tabs mb-4">
+            <ul class="nav nav-tabs mb-4">    
                 <li class="nav-item">
                     <router-link class="nav-link" to="/dashboard/parking-lots" active-class="active">
                         <i class="bi bi-geo-alt me-1"></i> Parking Lots
@@ -37,6 +38,11 @@ export const UserDashboard = {
                 <li class="nav-item">
                     <router-link class="nav-link" to="/dashboard/history" active-class="active">
                         <i class="bi bi-clock-history me-1"></i> History
+                    </router-link>
+                </li>
+                <li class="nav-item">
+                    <router-link class="nav-link" to="/dashboard/statistics" active-class="active">
+                        <i class="bi bi-bar-chart me-1"></i> Statistics
                     </router-link>
                 </li>
             </ul>

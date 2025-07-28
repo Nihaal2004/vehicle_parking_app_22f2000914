@@ -13,6 +13,9 @@ export const AdminDashboard = {
                     <div class="collapse navbar-collapse">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item">
+                                <router-link to="/admin/statistics" class="nav-link">Statistics</router-link>
+                            </li>
+                            <li class="nav-item">
                                 <router-link to="/admin/parking-lots" class="nav-link">Parking Lots</router-link>
                             </li>
                             <li class="nav-item">

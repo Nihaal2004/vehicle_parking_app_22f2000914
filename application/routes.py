@@ -3,9 +3,10 @@ from flask_security import auth_required, current_user, roles_required, roles_ac
 from flask_security.utils import login_user, logout_user, verify_password
 from .database import db
 from .models import User, Role, ParkingLot, ParkingSpot, Reservation
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.types import DateTime
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, extract
+import calendar
 
 @app.route("/", defaults={'path': ''})
 @app.route('/<path:path>')
@@ -391,3 +392,145 @@ def get_all_reservations():
         "parking_cost": res.parking_cost,
         "status": res.status
     } for res in reservations])
+
+@app.route('/api/admin/statistics', methods=['GET'])
+@auth_required('token')
+@roles_required('admin')
+def get_admin_statistics():
+    # Basic statistics
+    total_parking_lots = ParkingLot.query.count()
+    active_reservations = Reservation.query.filter_by(status='active').count() 
+    total_users = User.query.count()
+    
+    # Monthly revenue (current month)
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    monthly_revenue = db.session.query(func.sum(Reservation.parking_cost))\
+        .filter(extract('month', Reservation.leaving_timestamp) == current_month,
+                extract('year', Reservation.leaving_timestamp) == current_year,
+                Reservation.status == 'completed')\
+        .scalar() or 0
+    
+    # Occupancy data
+    total_spots = db.session.query(func.sum(ParkingLot.total_spots)).scalar() or 0
+    occupied_spots = ParkingSpot.query.filter_by(status='O').count()
+    available_spots = total_spots - occupied_spots
+    
+    # Revenue trend (last 6 months)
+    revenue_data = []
+    for i in range(5, -1, -1):  # Last 6 months
+        target_date = datetime.now() - timedelta(days=30*i)
+        month_revenue = db.session.query(func.sum(Reservation.parking_cost))\
+            .filter(extract('month', Reservation.leaving_timestamp) == target_date.month,
+                    extract('year', Reservation.leaving_timestamp) == target_date.year,
+                    Reservation.status == 'completed')\
+            .scalar() or 0
+        revenue_data.append(float(month_revenue))
+    
+    # Reservation status counts
+    completed_count = Reservation.query.filter_by(status='completed').count()
+    cancelled_count = Reservation.query.filter_by(status='cancelled').count()
+    
+    # Daily reservations (last 7 days)
+    daily_reservations = []
+    for i in range(6, -1, -1):  # Last 7 days
+        target_date = datetime.now() - timedelta(days=i)
+        day_count = Reservation.query.filter(
+            func.date(Reservation.parking_timestamp) == target_date.date()
+        ).count()
+        daily_reservations.append(day_count)
+    
+    return jsonify({
+        "stats": {
+            "totalParkingLots": total_parking_lots,
+            "activeReservations": active_reservations,
+            "totalUsers": total_users,
+            "monthlyRevenue": round(float(monthly_revenue), 2)
+        },
+        "occupancy": {
+            "occupied": occupied_spots,
+            "available": available_spots
+        },
+        "revenue": {
+            "monthly": revenue_data
+        },
+        "reservationStatus": {
+            "active": active_reservations,
+            "completed": completed_count,
+            "cancelled": cancelled_count
+        },
+        "dailyReservations": daily_reservations
+    })
+
+@app.route('/api/user/statistics', methods=['GET'])
+@auth_required('token')
+def get_user_statistics():
+    user_id = current_user.id
+    
+    total_reservations = Reservation.query.filter_by(user_id=user_id).count()
+    active_reservations = Reservation.query.filter_by(user_id=user_id, status='active').count()
+    completed_reservations = Reservation.query.filter_by(user_id=user_id, status='completed').count()
+    
+    total_spent = db.session.query(func.sum(Reservation.parking_cost))\
+        .filter_by(user_id=user_id, status='completed')\
+        .scalar() or 0
+    
+    cancelled_count = Reservation.query.filter_by(user_id=user_id, status='cancelled').count()
+    
+    monthly_spending = []
+    for i in range(5, -1, -1):  
+        target_date = datetime.now() - timedelta(days=30*i)
+        month_spending = db.session.query(func.sum(Reservation.parking_cost))\
+            .filter(Reservation.user_id == user_id,
+                    extract('month', Reservation.leaving_timestamp) == target_date.month,
+                    extract('year', Reservation.leaving_timestamp) == target_date.year,
+                    Reservation.status == 'completed')\
+            .scalar() or 0
+        monthly_spending.append(float(month_spending))
+    
+    parking_lot_usage = (
+        db.session
+         .query(
+              ParkingLot.name,
+              func.count(Reservation.id).label('count')
+          )
+          .select_from(ParkingLot)
+          .join(ParkingSpot, ParkingSpot.lot_id == ParkingLot.id)
+          .join(Reservation, Reservation.spot_id == ParkingSpot.id)
+          .filter(Reservation.user_id == user_id)
+          .group_by(ParkingLot.name)
+          .order_by(func.count(Reservation.id).desc())
+          .limit(5)
+          .all()
+    )
+    
+    parking_lot_data = [{"name": lot.name, "count": lot.count} for lot in parking_lot_usage]
+    
+    weekly_pattern = [0] * 7  
+    weekly_reservations = db.session.query(
+        extract('dow', Reservation.parking_timestamp).label('day_of_week'),
+        func.count(Reservation.id).label('count')
+    ).filter(Reservation.user_id == user_id)\
+     .group_by(extract('dow', Reservation.parking_timestamp)).all()
+    
+    for day_data in weekly_reservations:
+        dow = day_data.day_of_week
+        monday_index = (dow + 6) % 7
+        weekly_pattern[monday_index] = day_data.count
+    
+    return jsonify({
+        "stats": {
+            "totalReservations": total_reservations,
+            "activeReservations": active_reservations,
+            "completedReservations": completed_reservations,
+            "totalSpent": round(float(total_spent), 2)
+        },
+        "reservationStatus": {
+            "active": active_reservations,
+            "completed": completed_reservations,
+            "cancelled": cancelled_count
+        },
+        "monthlySpending": monthly_spending,
+        "parkingLotUsage": parking_lot_data,
+        "weeklyPattern": weekly_pattern
+    })
