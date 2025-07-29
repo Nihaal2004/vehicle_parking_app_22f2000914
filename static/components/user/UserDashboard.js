@@ -2,7 +2,7 @@ import { getAuthHeader } from '../../utils/auth.js';
 import { ParkingLotsView } from './ParkingLotsView.js';
 import { ActiveReservations } from './ActiveReservations.js';
 import { ReservationHistory } from './ReservationHistory.js';
-import { UserStatistics } from './UserStatistics.js';  // new import
+import { UserStatistics } from './UserStatistics.js'; 
 
 export const UserDashboard = {
     template: `
@@ -15,6 +15,7 @@ export const UserDashboard = {
                         Parking System
                     </a>
                     <div class="navbar-nav ms-auto">
+                        <button @click="export_res" class="btn btn-success me-2">Export Reservation</button>
                         <span class="navbar-text me-3">Welcome, {{ user.username }}</span>
                         <button class="btn btn-outline-light btn-sm" @click="logout">
                             <i class="bi bi-box-arrow-right"></i> Logout
@@ -22,6 +23,12 @@ export const UserDashboard = {
                     </div>
                 </div>
             </nav>
+            
+            <!-- Alert message -->
+            <div v-if="alertMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ alertMessage }}
+                <button type="button" class="btn-close" @click="clearAlert"></button>
+            </div>
 
             <!-- Navigation Tabs -->
             <ul class="nav nav-tabs mb-4">    
@@ -53,7 +60,8 @@ export const UserDashboard = {
     `,
     data() {
         return {
-            user: JSON.parse(localStorage.getItem('user') || '{}')
+            user: JSON.parse(localStorage.getItem('user') || '{}'),
+            alertMessage: ''  // Added this missing property
         }
     },
     methods: {
@@ -70,6 +78,28 @@ export const UserDashboard = {
                 localStorage.removeItem('user');
                 this.$router.push('/login');
             });
+        },
+        export_res() {
+            fetch('/api/export/csv', {
+                method: 'POST', 
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeader()
+                }, 
+                body: JSON.stringify({'report_type': 'reservations'})
+            })
+            .then(() => {
+                this.alertMessage = 'Reservations export started successfully. You will receive an email when ready.';
+                setTimeout(() => {
+                    this.clearAlert();
+                }, 5000);
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+            });
+        },
+        clearAlert() {
+            this.alertMessage = '';
         }
     }
 };

@@ -7,6 +7,7 @@ from flask_security import Security, SQLAlchemyUserDatastore, hash_password
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import sqlite3
+from application.celery_init import celery_init_app
 
 
 def create_app():
@@ -25,6 +26,7 @@ def create_app():
     app.app_context().push()
     return app
 app = create_app()
+celery = celery_init_app(app)
 
 with app.app_context():
     db.create_all()
@@ -32,8 +34,8 @@ with app.app_context():
     user_role = app.security.datastore.find_or_create_role(name = "user")
     db.session.commit()
 
-    if not app.security.datastore.find_user(email = "smartparkingbot@gmail.com"):
-        app.security.datastore.create_user(email = "smartparkingbot@gmail.com", 
+    if not app.security.datastore.find_user(email = "rnihaalahmed@gmail.com"):
+        app.security.datastore.create_user(email = "rnihaalahmed@gmail.com", 
                                            username = "admin",
                                            password = hash_password("123"),
                                            roles = [admin_role])

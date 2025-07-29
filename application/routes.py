@@ -534,3 +534,63 @@ def get_user_statistics():
         "parkingLotUsage": parking_lot_data,
         "weeklyPattern": weekly_pattern
     })
+
+from application.tasks import export_csv
+
+
+@app.route('/api/export/csv', methods=['POST'])
+@auth_required('token')
+def trigger_csv_export():
+    """Trigger CSV export for current user"""
+    data = request.get_json()
+    report_type = data.get('report_type', 'reservations')
+    
+    if report_type not in ['reservations', 'parking_lots']:
+        return jsonify({"error": "Invalid report type"}), 400
+    
+    if 'admin' not in [role.name for role in current_user.roles]:
+        if report_type != 'reservations':
+            return jsonify({"error": "Unauthorized"}), 403
+        
+        task = export_csv.delay(
+            user_id=current_user.id, 
+            report_type=report_type, 
+            requesting_user_id=current_user.id
+        )
+    else:
+        user_id = data.get('user_id')  
+        task = export_csv.delay(
+            user_id=user_id, 
+            report_type=report_type, 
+            requesting_user_id=current_user.id
+        )
+    
+    return jsonify({
+        "message": "CSV export started. You will receive an email when ready.",
+        "task_id": task.id
+    })
+
+@app.route('/api/admin/export/csv', methods=['POST'])
+@auth_required('token')
+@roles_required('admin')
+def admin_csv_export():
+    """Admin CSV export with more options"""
+    data = request.get_json()
+    report_type = data.get('report_type', 'reservations')
+    user_id = data.get('user_id')  
+    
+    if report_type not in ['reservations', 'parking_lots']:
+        return jsonify({"error": "Invalid report type"}), 400
+    
+    task = export_csv.delay(
+        user_id=user_id, 
+        report_type=report_type, 
+        requesting_user_id=current_user.id
+    )
+    
+    return jsonify({
+        "message": "CSV export started",
+        "task_id": task.id,
+        "report_type": report_type
+    })
+
