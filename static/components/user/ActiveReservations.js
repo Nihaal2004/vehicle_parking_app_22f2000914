@@ -184,12 +184,18 @@ export const ActiveReservations = {
         },
         
         calculateDuration(startTime) {
-            const start = new Date(startTime);
-            const now = new Date();
-            const diffMs = now - start;
-            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-            return `${diffHours}h ${diffMinutes}m`;
-        }
+    const start = new Date(startTime);
+    const now = new Date();
+
+    // Naively subtract 5 hours 30 minutes (in milliseconds)
+    const adjustedNow = new Date(now.getTime() - 19800000);
+
+    const diffMs = adjustedNow - start;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    return `${diffHours}h ${diffMinutes}m`;
+}
+
     }
 };

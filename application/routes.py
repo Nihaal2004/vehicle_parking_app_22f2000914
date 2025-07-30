@@ -1,3 +1,5 @@
+from app import cache
+
 from flask import jsonify, request, current_app as app, render_template
 from flask_security import auth_required, current_user, roles_required, roles_accepted, hash_password
 from flask_security.utils import login_user, logout_user, verify_password
@@ -7,6 +9,15 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.types import DateTime
 from sqlalchemy.sql import func, extract
 import calendar
+
+
+def make_user_cache_key():
+    return f"user_{current_user.id}_{request.endpoint}"
+
+def make_lot_cache_key(lot_id=None):
+    if lot_id:
+        return f"lot_{lot_id}"
+    return "all_lots"
 
 @app.route("/", defaults={'path': ''})
 @app.route('/<path:path>')
@@ -77,6 +88,7 @@ def user_home():
         }
     })
 
+@cache.cached(timeout = 300, key_prefix = 'all_parking_lots')
 @app.route('/api/parking-lots', methods=['GET'])
 @auth_required('token')
 def get_parking_lots():
@@ -117,8 +129,10 @@ def create_parking_lot():
         db.session.add(spot)
     
     db.session.commit()
+    cache.delete('all_parking_lots')
     return jsonify({"message": "Parking lot created successfully"}), 201
 
+@cache.cached(timeout=120, make_cache_key=lambda: f"lot_{request.view_args['lot_id']}_details")
 @app.route('/api/parking-lots/<int:lot_id>', methods=['GET'])
 @auth_required('token')
 def get_parking_lot_details(lot_id):
@@ -139,7 +153,7 @@ def get_parking_lot_details(lot_id):
         } for spot in spots]
     })
 
-
+@cache.cached(timeout=60, make_cache_key=lambda: f"lot_{request.view_args['lot_id']}_spots")
 @app.route('/api/parking-lots/<int:lot_id>/spots', methods=['GET'])
 @auth_required('token')
 def get_parking_lot_spots(lot_id):
@@ -249,7 +263,9 @@ def update_parking_lot(lot_id):
         db.session.commit()
         
         response_data = {"message": "Parking lot updated successfully"}
-        
+        cache.delete('all_parking_lots')
+        cache.delete(f'lot_{lot_id}_details')
+        cache.delete(f'lot_{lot_id}_spots')
         if new_total_spots > old_total_spots:
             response_data["spots_added"] = new_total_spots - old_total_spots
         elif new_total_spots < old_total_spots:
@@ -299,7 +315,8 @@ def create_reservation():
     
     db.session.add(reservation)
     db.session.commit()
-    
+    cache.delete(f'lot_{lot_id}_spots')
+    cache.delete('all_parking_lots')
     return jsonify({
         "message": "Reservation created successfully",
         "spot_number": available_spot.spot_number
@@ -333,12 +350,16 @@ def release_spot(reservation_id):
     reservation.spot.status = 'A'
     
     db.session.commit()
-    
+    cache.delete(f'lot_{reservation.spot.lot_id}_spots')
+    cache.delete('all_parking_lots')
+    cache.delete(f'user_{current_user.id}_reservations')
     return jsonify({
         "message": "Spot released successfully",
         "duration_hours": round(hours, 2),
         "total_cost": round(total_cost, 2)
     })
+
+@cache.cached(timeout=300, make_cache_key=make_user_cache_key)
 @app.route('/api/reservations/my-history', methods=['GET'])
 @auth_required('token')
 def get_my_reservations():
@@ -356,6 +377,7 @@ def get_my_reservations():
         "status": res.status
     } for res in reservations])
 
+@cache.cached(timeout=300, key_prefix='admin_users')
 @app.route('/api/admin/users', methods=['GET'])
 @auth_required('token')
 @roles_required('admin')
@@ -374,6 +396,7 @@ def get_all_users():
         "total_reservations": Reservation.query.filter_by(user_id=user.id).count()
     } for user in users])
 
+@cache.cached(timeout=180, key_prefix='admin_reservations')
 @app.route('/api/admin/reservations', methods=['GET'])
 @auth_required('token')
 @roles_required('admin')
@@ -393,6 +416,7 @@ def get_all_reservations():
         "status": res.status
     } for res in reservations])
 
+@cache.cached(timeout=300, key_prefix='admin_stats')
 @app.route('/api/admin/statistics', methods=['GET'])
 @auth_required('token')
 @roles_required('admin')
@@ -462,6 +486,7 @@ def get_admin_statistics():
         "dailyReservations": daily_reservations
     })
 
+@cache.cached(timeout=600, make_cache_key=make_user_cache_key)
 @app.route('/api/user/statistics', methods=['GET'])
 @auth_required('token')
 def get_user_statistics():

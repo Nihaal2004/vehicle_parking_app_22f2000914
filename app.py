@@ -8,7 +8,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import sqlite3
 from application.celery_init import celery_init_app
-
+from flask_caching import Cache
 
 def create_app():
     app = Flask(__name__)
@@ -27,6 +27,15 @@ def create_app():
     return app
 app = create_app()
 celery = celery_init_app(app)
+cache = Cache()
+
+cache.init_app(app, config={
+        'CACHE_TYPE': 'RedisCache',
+        'CACHE_REDIS_HOST': 'localhost',
+        'CACHE_REDIS_PORT': 6379,
+        'CACHE_REDIS_DB': 2,
+        'CACHE_DEFAULT_TIMEOUT': 300
+    })
 
 with app.app_context():
     db.create_all()

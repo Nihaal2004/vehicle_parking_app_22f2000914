@@ -4,7 +4,6 @@ load_dotenv()
 class Config():
     DEBUG = False
     SQLALCHEMY_TRACK_MODIFICATIONS = True
-print(os.getenv('PASSWORD'))
 class LocalDevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI  = "sqlite:///vps.sqlite3"
     DEBUG = True
