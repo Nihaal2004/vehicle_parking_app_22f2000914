@@ -374,7 +374,7 @@ def export_csv(user_id=None, report_type="reservations", requesting_user_id=None
 
 @shared_task(ignore_results=False, name="cleanup_temp_files")
 def cleanup_temp_files():
-    """Clean up temporary CSV files older than 24 hours"""
+    
     try:
         temp_dir = tempfile.gettempdir()
         current_time = datetime.now()

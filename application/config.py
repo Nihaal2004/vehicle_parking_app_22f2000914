@@ -1,9 +1,10 @@
 import os
-from .secret import PASSWORD
+from dotenv import load_dotenv
+load_dotenv()
 class Config():
     DEBUG = False
     SQLALCHEMY_TRACK_MODIFICATIONS = True
-
+print(os.getenv('PASSWORD'))
 class LocalDevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI  = "sqlite:///vps.sqlite3"
     DEBUG = True
@@ -17,12 +18,12 @@ class LocalDevelopmentConfig(Config):
     MAIL_USE_TLS = True
     MAIL_USE_SSL = False
     MAIL_USERNAME = 'smartparkingbot@gmail.com'
-    MAIL_PASSWORD = PASSWORD  # Use Gmail App Password
+    MAIL_PASSWORD = os.getenv('PASSWORD')  # Use Gmail App Password
     MAIL_DEFAULT_SENDER = 'smartparkingbot@gmail.com'
     SMTP_SERVER       = "smtp.gmail.com"
     SMTP_PORT         = 587
     EMAIL_USER        = "smartparkingbot@gmail.com"
-    EMAIL_APP_PASSWORD= PASSWORD
+    EMAIL_APP_PASSWORD= os.getenv('PASSWORD')
     
     # Celery Configuration
     CELERY_BROKER_URL = 'redis://localhost:6379/0'

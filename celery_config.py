@@ -7,12 +7,12 @@ timezone = "UTC"
 beat_schedule = {
     'daily-reminders-test': {
         'task': 'daily_reminders',
-        'schedule': 120.0,  
+        'schedule': 180.0,  
     },
     
     'monthly-reports-test': {
         'task': 'monthly_reports', 
-        'schedule': 120.0,  
+        'schedule': 180.0,  
     },
     
     'cleanup-temp-files': {
@@ -36,19 +36,19 @@ result_expires = 3600
 
 # # Celery Beat Schedule for periodic tasks
 # beat_schedule = {
-#     # Daily reminders at 9:00 AM every day
+#     
 #     'daily-reminders': {
 #         'task': 'daily_reminders',
 #         'schedule': crontab(hour=9, minute=0),
 #     },
     
-#     # Monthly reports on 1st of every month at 10:00 AM
+#     
 #     'monthly-reports': {
 #         'task': 'monthly_reports',
 #         'schedule': crontab(hour=10, minute=0, day_of_month=1),
 #     },
     
-#     # Cleanup temp files daily at 2:00 AM
+#     
 #     'cleanup-temp-files': {
 #         'task': 'cleanup_temp_files',
 #         'schedule': crontab(hour=2, minute=0),
