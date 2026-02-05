@@ -58,7 +58,7 @@ A full-stack web application to manage vehicle parking operations with real-time
 
 **Backend**
 - Python + Flask (REST APIs)
-- PostgreSQL (primary database)
+- SQLite (primary database)
 - SQLAlchemy + Alembic (ORM + migrations)
 
 **Async / Caching**
