@@ -66,10 +66,8 @@ A full-stack web application to manage vehicle parking operations with real-time
 - Celery (background jobs, scheduling)
 
 **Frontend**
-- Vue.js / React (SPA UI) *(use the one your project has)*
+- Vue.js 
 
-**DevOps**
-- Docker + Docker Compose (local production-like environment)
 
 ---
 
